@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flood Risk Map - SIMPLE WORKING VERSION</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; }
+        .container { display: flex; height: 100vh; }
+        #map { flex: 1; }
+        .sidebar { width: 350px; background: #1a1a2e; color: white; padding: 20px; overflow-y: auto; }
+        h1 { color: #00b4d8; margin-bottom: 20px; }
+        .control { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; color: #89c2d9; }
+        input[type="range"] { width: 100%; }
+        .value { float: right; color: #00b4d8; font-weight: bold; }
+        select, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; }
+        button { background: #00b4d8; color: white; border: none; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0096c7; }
+        .stats { background: #16213e; padding: 15px; border-radius: 10px; margin-top: 20px; }
+        .stat { display: flex; justify-content: space-between; margin: 10px 0; }
+        .risk-high { color: #ff6b6b; }
+        .risk-medium { color: #ffd166; }
+        .risk-low { color: #06d6a0; }
+        .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        .high-dot { background: #ff6b6b; }
+        .medium-dot { background: #ffd166; }
+        .low-dot { background: #06d6a0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>🌊 Flood Risk Map</h1>
+            
+            <div class="control">
+                <label>🏙️ City: <span class="value" id="city-value">New York</span></label>
+                <select id="city-select">
+                    <option value="New York">New York</option>
+                    <option value="Mumbai">Mumbai</option>
+                    <option value="Tokyo">Tokyo</option>
+                    <option value="London">London</option>
+                    <option value="Shanghai">Shanghai</option>
+                    <option value="Miami">Miami</option>
+                </select>
+            </div>
+            
+            <div class="control">
+                <label>🌧️ Rainfall: <span class="value" id="rain-value">1.0x</span></label>
+                <input type="range" id="rain-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+            </div>
+            
+            <div class="control">
+                <label>🚰 Drainage: <span class="value" id="drain-value">1.0x</span></label>
+                <input type="range" id="drain-slider" min="0.1" max="2.0" step="0.1" value="1.0">
+            </div>
+            
+            <div class="control">
+                <label>
+                    <input type="checkbox" id="night-toggle">
+                    🌙 Nighttime Scenario (30% higher risk)
+                </label>
+            </div>
+            
+            <button id="update-btn">🔄 Update Map</button>
+            
+            <div class="stats">
+                <h3>📊 Statistics</h3>
+                <div class="stat">
+                    <span><span class="dot high-dot"></span>High Risk:</span>
+                    <span class="risk-high" id="high-count">0</span>
+                </div>
+                <div class="stat">
+                    <span><span class="dot medium-dot"></span>Medium Risk:</span>
+                    <span class="risk-medium" id="medium-count">0</span>
+                </div>
+                <div class="stat">
+                    <span><span class="dot low-dot"></span>Low Risk:</span>
+                    <span class="risk-low" id="low-count">0</span>
+                </div>
+                <div class="stat">
+                    <span>📍 Total Areas:</span>
+                    <span id="total-count">0</span>
+                </div>
+                <div class="stat">
+                    <span>⏰ Last Update:</span>
+                    <span id="update-time">Never</span>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; color: #89c2d9; font-size: 14px;">
+                <p>ℹ️ <strong>How to use:</strong></p>
+                <p>1. Select a city</p>
+                <p>2. Adjust rainfall & drainage</p>
+                <p>3. Toggle nighttime</p>
+                <p>4. Click Update Map</p>
+                <p>5. Click on dots for details</p>
+            </div>
+        </div>
+        
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script>
+        
+        const map = L.map('map').setView([40.71, -74.00], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+        
+        let heatLayer = null;
+        let markers = [];
+        
+        
+        const cityCoords = {
+            'New York': [40.71, -74.00],
+            'Mumbai': [19.07, 72.87],
+            'Tokyo': [35.67, 139.65],
+            'London': [51.50, -0.12],
+            'Shanghai': [31.23, 121.47],
+            'Miami': [25.76, -80.19]
+        };
+        
+        
+        document.getElementById('rain-slider').addEventListener('input', function() {
+            document.getElementById('rain-value').textContent = this.value + 'x';
+        });
+        
+        document.getElementById('drain-slider').addEventListener('input', function() {
+            document.getElementById('drain-value').textContent = this.value + 'x';
+        });
+        
+        document.getElementById('city-select').addEventListener('change', function() {
+            document.getElementById('city-value').textContent = this.value;
+            const coords = cityCoords[this.value];
+            if (coords) {
+                map.setView(coords, 12);
+            }
+        });
+        
+        
+        document.getElementById('update-btn').addEventListener('click', loadData);
+        
+        
+        document.getElementById('city-select').addEventListener('change', loadData);
+        
+       
+        loadData();
+        
+        async function loadData() {
+            const city = document.getElementById('city-select').value;
+            const rain = document.getElementById('rain-slider').value;
+            const drain = document.getElementById('drain-slider').value;
+            const night = document.getElementById('night-toggle').checked;
+            
+            try {
+                const url = `http://localhost:5000/?city=${encodeURIComponent(city)}&rainfall=${rain}&drainage=${drain}&night=${night}`;
+                console.log('Fetching:', url);
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                console.log('Data received:', data);
+                renderMap(data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error loading data. Make sure backend is running on port 5000.');
+            }
+        }
+        
+        function renderMap(data) {
+            
+            if (heatLayer) {
+                map.removeLayer(heatLayer);
+            }
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            
+           
+            const heatData = data.areas.map(area => {
+                return [area.center[0], area.center[1], area.risk_score * 20];
+            });
+            
+          
+            heatLayer = L.heatLayer(heatData, {
+                radius: 25,
+                blur: 20,
+                maxZoom: 16,
+                gradient: {0.4: 'blue', 0.6: 'lime', 0.7: 'yellow', 1: 'red'}
+            }).addTo(map);
+            
+            
+            data.areas.forEach(area => {
+                const color = area.risk_level === 'High' ? 'red' : 
+                             area.risk_level === 'Medium' ? 'orange' : 'green';
+                
+                const marker = L.circleMarker(area.center, {
+                    radius: 6,
+                    fillColor: color,
+                    color: 'white',
+                    weight: 1,
+                    fillOpacity: 0.7
+                }).addTo(map);
+                
+               
+                marker.bindPopup(`
+                    <div style="padding: 10px; min-width: 200px;">
+                        <h3 style="margin: 0 0 10px 0;">${area.name}</h3>
+                        <div style="background: ${color}; color: white; padding: 5px 10px; border-radius: 10px; margin-bottom: 10px;">
+                            ${area.risk_level} Risk (${(area.risk_score * 100).toFixed(1)}%)
+                        </div>
+                        <p style="margin: 5px 0;"><strong>Elevation:</strong> ${area.elevation}m</p>
+                        <p style="margin: 5px 0;"><strong>Population:</strong> ${area.population.toLocaleString()}</p>
+                        <p style="margin: 5px 0;"><strong>Drainage:</strong> ${(area.drainage * 100).toFixed(0)}%</p>
+                    </div>
+                `);
+                
+                markers.push(marker);
+            });
+            
+          
+            data.hospitals.forEach(hospital => {
+                const icon = L.divIcon({
+                    html: '🏥',
+                    iconSize: [30, 30]
+                });
+                
+                const marker = L.marker(hospital.location, { icon }).addTo(map);
+                marker.bindPopup(`<b>${hospital.name}</b><br>${hospital.beds} beds`);
+                markers.push(marker);
+            });
+            
+           
+            updateStats(data.areas);
+            
+            
+            document.getElementById('update-time').textContent = 
+                new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+        
+        function updateStats(areas) {
+            const high = areas.filter(a => a.risk_level === 'High').length;
+            const medium = areas.filter(a => a.risk_level === 'Medium').length;
+            const low = areas.filter(a => a.risk_level === 'Low').length;
+            
+            document.getElementById('high-count').textContent = high;
+            document.getElementById('medium-count').textContent = medium;
+            document.getElementById('low-count').textContent = low;
+            document.getElementById('total-count').textContent = areas.length;
+        }
+    </script>
+</body>
+</html>
