@@ -3,255 +3,674 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flood Risk Map - SIMPLE WORKING VERSION</title>
+    <title>Urban Flood Monitor | Real-Time Risk Assessment</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; height: 100vh; overflow: hidden; }
-        .container { display: flex; height: 100vh; }
-        #map { flex: 1; }
-        .sidebar { width: 350px; background: #1a1a2e; color: white; padding: 20px; overflow-y: auto; }
-        h1 { color: #00b4d8; margin-bottom: 20px; }
-        .control { margin: 15px 0; }
-        label { display: block; margin-bottom: 5px; color: #89c2d9; }
-        input[type="range"] { width: 100%; }
-        .value { float: right; color: #00b4d8; font-weight: bold; }
-        select, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; }
-        button { background: #00b4d8; color: white; border: none; cursor: pointer; font-size: 16px; }
-        button:hover { background: #0096c7; }
-        .stats { background: #16213e; padding: 15px; border-radius: 10px; margin-top: 20px; }
-        .stat { display: flex; justify-content: space-between; margin: 10px 0; }
-        .risk-high { color: #ff6b6b; }
-        .risk-medium { color: #ffd166; }
-        .risk-low { color: #06d6a0; }
-        .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
-        .high-dot { background: #ff6b6b; }
-        .medium-dot { background: #ffd166; }
-        .low-dot { background: #06d6a0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            height: 100vh; 
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: white;
+        }
+        
+        .container { 
+            display: flex; 
+            height: 100vh; 
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        
+        #map { 
+            flex: 1; 
+            z-index: 1;
+        }
+        
+        .sidebar { 
+            width: 380px; 
+            background: rgba(15, 32, 39, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #00b4d8;
+        }
+        
+        h1 { 
+            color: #00b4d8; 
+            margin-bottom: 10px;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        h1 i {
+            font-size: 32px;
+        }
+        
+        .tagline {
+            color: #89c2d9;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            background: rgba(0, 180, 216, 0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: inline-block;
+            border: 1px solid rgba(0, 180, 216, 0.3);
+        }
+        
+        .control-group {
+            background: rgba(32, 58, 67, 0.6);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        h2 {
+            color: #4cc9f0;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control {
+            margin: 18px 0;
+        }
+        
+        .control label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: #a9d6e5;
+            font-weight: 500;
+        }
+        
+        .control-value {
+            color: #00b4d8;
+            font-weight: bold;
+            background: rgba(0,0,0,0.3);
+            padding: 3px 10px;
+            border-radius: 10px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            background: #2c5364;
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00b4d8;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 0 10px rgba(0,180,216,0.5);
+        }
+        
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            background: #2c5364;
+            color: white;
+            border: 1px solid #457b9d;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        
+        .toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+        }
+        
+        .toggle label {
+            color: #a9d6e5;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #2c5364;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #00b4d8;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #00b4d8, #0096c7);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0096c7, #0077b6);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,180,216,0.4);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: rgba(32, 58, 67, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border-top: 4px solid;
+        }
+        
+        .stat-card.high { border-color: #ff6b6b; }
+        .stat-card.medium { border-color: #ffd166; }
+        .stat-card.low { border-color: #06d6a0; }
+        .stat-card.total { border-color: #00b4d8; }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .high .stat-value { color: #ff6b6b; }
+        .medium .stat-value { color: #ffd166; }
+        .low .stat-value { color: #06d6a0; }
+        .total .stat-value { color: #00b4d8; }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #a9d6e5;
+        }
+        
+        .update-info {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            color: #89c2d9;
+            font-size: 14px;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(32, 58, 67, 0.6);
+            border-radius: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .legend-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+        }
+        
+        .legend-dot.high { background: #ff6b6b; }
+        .legend-dot.medium { background: #ffd166; }
+        .legend-dot.low { background: #06d6a0; }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #00b4d8;
+        }
+        
+        .loading i {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        @media (max-width: 1024px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; height: 40vh; }
+            #map { height: 60vh; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="sidebar">
-            <h1>🌊 Flood Risk Map</h1>
+            <div class="header">
+                <h1><i class="fas fa-water"></i> Urban Flood Monitor</h1>
+                <div class="tagline">Real-Time Flood Risk Assessment System</div>
+                <div class="status"><i class="fas fa-circle" style="color: #06d6a0; font-size: 12px;"></i> System Active</div>
+            </div>
             
-            <div class="control">
-                <label>🏙️ City: <span class="value" id="city-value">New York</span></label>
+            <div class="control-group">
+                <h2><i class="fas fa-city"></i> City Selection</h2>
                 <select id="city-select">
-                    <option value="New York">New York</option>
-                    <option value="Mumbai">Mumbai</option>
-                    <option value="Tokyo">Tokyo</option>
-                    <option value="London">London</option>
-                    <option value="Shanghai">Shanghai</option>
-                    <option value="Miami">Miami</option>
+                    <option value="New York">🏙️ New York, USA</option>
+                    <option value="Mumbai">🏙️ Mumbai, India</option>
+                    <option value="Tokyo">🏙️ Tokyo, Japan</option>
+                    <option value="London">🏙️ London, UK</option>
+                    <option value="Shanghai">🏙️ Shanghai, China</option>
+                    <option value="Miami">🏙️ Miami, USA</option>
                 </select>
             </div>
             
-            <div class="control">
-                <label>🌧️ Rainfall: <span class="value" id="rain-value">1.0x</span></label>
-                <input type="range" id="rain-slider" min="0.1" max="3.0" step="0.1" value="1.0">
-            </div>
-            
-            <div class="control">
-                <label>🚰 Drainage: <span class="value" id="drain-value">1.0x</span></label>
-                <input type="range" id="drain-slider" min="0.1" max="2.0" step="0.1" value="1.0">
-            </div>
-            
-            <div class="control">
-                <label>
-                    <input type="checkbox" id="night-toggle">
-                    🌙 Nighttime Scenario (30% higher risk)
-                </label>
-            </div>
-            
-            <button id="update-btn">🔄 Update Map</button>
-            
-            <div class="stats">
-                <h3>📊 Statistics</h3>
-                <div class="stat">
-                    <span><span class="dot high-dot"></span>High Risk:</span>
-                    <span class="risk-high" id="high-count">0</span>
+            <div class="control-group">
+                <h2><i class="fas fa-sliders-h"></i> Risk Simulation</h2>
+                
+                <div class="control">
+                    <label>
+                        <span><i class="fas fa-cloud-rain"></i> Rainfall Intensity</span>
+                        <span class="control-value" id="rain-value">Normal (1.0x)</span>
+                    </label>
+                    <input type="range" id="rain-slider" min="0.1" max="3.0" step="0.1" value="1.0">
                 </div>
-                <div class="stat">
-                    <span><span class="dot medium-dot"></span>Medium Risk:</span>
-                    <span class="risk-medium" id="medium-count">0</span>
+                
+                <div class="control">
+                    <label>
+                        <span><i class="fas fa-water"></i> Drainage Efficiency</span>
+                        <span class="control-value" id="drain-value">Normal (1.0x)</span>
+                    </label>
+                    <input type="range" id="drain-slider" min="0.1" max="2.0" step="0.1" value="1.0">
                 </div>
-                <div class="stat">
-                    <span><span class="dot low-dot"></span>Low Risk:</span>
-                    <span class="risk-low" id="low-count">0</span>
-                </div>
-                <div class="stat">
-                    <span>📍 Total Areas:</span>
-                    <span id="total-count">0</span>
-                </div>
-                <div class="stat">
-                    <span>⏰ Last Update:</span>
-                    <span id="update-time">Never</span>
+                
+                <div class="toggle">
+                    <label for="night-toggle">
+                        <i class="fas fa-moon"></i> Nighttime Scenario
+                        <span style="color: #ffd166; font-size: 12px;">(+30% risk)</span>
+                    </label>
+                    <label class="switch">
+                        <input type="checkbox" id="night-toggle">
+                        <span class="slider"></span>
+                    </label>
                 </div>
             </div>
             
-            <div style="margin-top: 20px; color: #89c2d9; font-size: 14px;">
-                <p>ℹ️ <strong>How to use:</strong></p>
-                <p>1. Select a city</p>
-                <p>2. Adjust rainfall & drainage</p>
-                <p>3. Toggle nighttime</p>
-                <p>4. Click Update Map</p>
-                <p>5. Click on dots for details</p>
+            <button class="btn-primary" id="update-btn">
+                <i class="fas fa-sync-alt"></i> Update Risk Map
+            </button>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-dot low"></div>
+                    <span>Low Risk</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot medium"></div>
+                    <span>Medium Risk</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot high"></div>
+                    <span>High Risk</span>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card high">
+                    <div class="stat-value" id="high-count">0</div>
+                    <div class="stat-label">High Risk Areas</div>
+                </div>
+                <div class="stat-card medium">
+                    <div class="stat-value" id="medium-count">0</div>
+                    <div class="stat-label">Medium Risk Areas</div>
+                </div>
+                <div class="stat-card low">
+                    <div class="stat-value" id="low-count">0</div>
+                    <div class="stat-label">Low Risk Areas</div>
+                </div>
+                <div class="stat-card total">
+                    <div class="stat-value" id="total-count">0</div>
+                    <div class="stat-label">Total Zones</div>
+                </div>
+            </div>
+            
+            <div class="update-info">
+                <i class="fas fa-clock"></i> Last Updated: <span id="update-time">Never</span>
+                <div style="margin-top: 10px; font-size: 12px; color: #4cc9f0;">
+                    <i class="fas fa-server"></i> Powered by Render.com
+                </div>
             </div>
         </div>
         
         <div id="map"></div>
+        
+        <div class="loading" id="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <div>Loading flood risk data...</div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script>
-        
-        const map = L.map('map').setView([40.71, -74.00], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-        
+        // Initialize variables
+        let map;
         let heatLayer = null;
         let markers = [];
+        let currentCity = 'New York';
         
-        
-        const cityCoords = {
-            'New York': [40.71, -74.00],
-            'Mumbai': [19.07, 72.87],
-            'Tokyo': [35.67, 139.65],
-            'London': [51.50, -0.12],
-            'Shanghai': [31.23, 121.47],
-            'Miami': [25.76, -80.19]
-        };
-        
-        
-        document.getElementById('rain-slider').addEventListener('input', function() {
-            document.getElementById('rain-value').textContent = this.value + 'x';
+        // Initialize map when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Urban Flood Monitor Initializing...');
+            initMap();
+            initControls();
+            loadData();
         });
         
-        document.getElementById('drain-slider').addEventListener('input', function() {
-            document.getElementById('drain-value').textContent = this.value + 'x';
-        });
+        function initMap() {
+            // Create map centered on world
+            map = L.map('map').setView([40.7128, -74.0060], 12);
+            
+            // Add tile layer with attribution
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 18,
+                minZoom: 3
+            }).addTo(map);
+            
+            // Add scale control
+            L.control.scale({ imperial: true, metric: true }).addTo(map);
+            
+            console.log('✅ Map initialized');
+        }
         
-        document.getElementById('city-select').addEventListener('change', function() {
-            document.getElementById('city-value').textContent = this.value;
-            const coords = cityCoords[this.value];
-            if (coords) {
-                map.setView(coords, 12);
-            }
-        });
-        
-        
-        document.getElementById('update-btn').addEventListener('click', loadData);
-        
-        
-        document.getElementById('city-select').addEventListener('change', loadData);
-        
-       
-        loadData();
+        function initControls() {
+            // Update slider displays
+            document.getElementById('rain-slider').addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                let label = 'Normal';
+                if (value < 0.8) label = 'Light';
+                else if (value < 1.3) label = 'Normal';
+                else if (value < 2.0) label = 'Heavy';
+                else label = 'Extreme';
+                document.getElementById('rain-value').textContent = `${label} (${value.toFixed(1)}x)`;
+            });
+            
+            document.getElementById('drain-slider').addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                let label = 'Normal';
+                if (value < 0.9) label = 'Excellent';
+                else if (value < 1.1) label = 'Normal';
+                else if (value < 1.5) label = 'Poor';
+                else label = 'Very Poor';
+                document.getElementById('drain-value').textContent = `${label} (${value.toFixed(1)}x)`;
+            });
+            
+            // City selection
+            document.getElementById('city-select').addEventListener('change', function() {
+                currentCity = this.value;
+                console.log(`🏙️ City changed to: ${currentCity}`);
+                
+                // Fly to city
+                const cityCoords = {
+                    'New York': [40.7128, -74.0060],
+                    'Mumbai': [19.0760, 72.8777],
+                    'Tokyo': [35.6762, 139.6503],
+                    'London': [51.5074, -0.1278],
+                    'Shanghai': [31.2304, 121.4737],
+                    'Miami': [25.7617, -80.1918]
+                };
+                
+                if (cityCoords[currentCity]) {
+                    map.flyTo(cityCoords[currentCity], 12, {
+                        duration: 1.5,
+                        easeLinearity: 0.25
+                    });
+                }
+                
+                // Load data for new city
+                setTimeout(loadData, 1600);
+            });
+            
+            // Update button
+            document.getElementById('update-btn').addEventListener('click', loadData);
+            
+            console.log('✅ Controls initialized');
+        }
         
         async function loadData() {
-            const city = document.getElementById('city-select').value;
-            const rain = document.getElementById('rain-slider').value;
-            const drain = document.getElementById('drain-slider').value;
-            const night = document.getElementById('night-toggle').checked;
-            
             try {
-                const url = `http://localhost:5000/?city=${encodeURIComponent(city)}&rainfall=${rain}&drainage=${drain}&night=${night}`;
-                console.log('Fetching:', url);
+                // Show loading
+                document.getElementById('loading').style.display = 'block';
+                
+                // Get current values
+                const rain = document.getElementById('rain-slider').value;
+                const drain = document.getElementById('drain-slider').value;
+                const night = document.getElementById('night-toggle').checked;
+                
+                // Build URL - On Render, we use relative path since backend serves both
+                const url = `/api?city=${encodeURIComponent(currentCity)}&rainfall=${rain}&drainage=${drain}&night=${night}`;
+                console.log(`📡 Fetching data from: ${url}`);
                 
                 const response = await fetch(url);
-                const data = await response.json();
                 
-                console.log('Data received:', data);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                console.log(`✅ Data received for ${currentCity}`, data);
+                
+                // Render the data
                 renderMap(data);
                 
+                // Update statistics
+                updateStatistics(data);
+                
+                // Update timestamp
+                const now = new Date();
+                document.getElementById('update-time').textContent = 
+                    now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error loading data. Make sure backend is running on port 5000.');
+                console.error('❌ Error loading data:', error);
+                alert(`Error: ${error.message}\n\nMake sure the server is running.`);
+            } finally {
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
             }
         }
         
         function renderMap(data) {
-            
+            // Clear previous layers
             if (heatLayer) {
                 map.removeLayer(heatLayer);
+                heatLayer = null;
             }
+            
             markers.forEach(marker => map.removeLayer(marker));
             markers = [];
             
-           
+            // Create heatmap data
             const heatData = data.areas.map(area => {
-                return [area.center[0], area.center[1], area.risk_score * 20];
+                const score = area.risk_score;
+                return [area.center[0], area.center[1], score * 25];
             });
             
-          
+            // Add heatmap
             heatLayer = L.heatLayer(heatData, {
-                radius: 25,
-                blur: 20,
+                radius: 35,
+                blur: 25,
                 maxZoom: 16,
-                gradient: {0.4: 'blue', 0.6: 'lime', 0.7: 'yellow', 1: 'red'}
+                minOpacity: 0.5,
+                gradient: {
+                    0.0: '#06d6a0',  // Green
+                    0.4: '#ffd166',  // Yellow
+                    0.7: '#ff9e6d',  // Orange
+                    1.0: '#ff6b6b'   // Red
+                }
             }).addTo(map);
             
-            
+            // Add area markers with popups
             data.areas.forEach(area => {
-                const color = area.risk_level === 'High' ? 'red' : 
-                             area.risk_level === 'Medium' ? 'orange' : 'green';
+                const color = area.risk_level === 'High' ? '#ff6b6b' : 
+                             area.risk_level === 'Medium' ? '#ffd166' : '#06d6a0';
                 
                 const marker = L.circleMarker(area.center, {
                     radius: 6,
                     fillColor: color,
-                    color: 'white',
-                    weight: 1,
-                    fillOpacity: 0.7
+                    color: '#ffffff',
+                    weight: 1.5,
+                    opacity: 0.8,
+                    fillOpacity: 0.6
                 }).addTo(map);
                 
-               
-                marker.bindPopup(`
-                    <div style="padding: 10px; min-width: 200px;">
-                        <h3 style="margin: 0 0 10px 0;">${area.name}</h3>
-                        <div style="background: ${color}; color: white; padding: 5px 10px; border-radius: 10px; margin-bottom: 10px;">
+                // Create popup content
+                const popupContent = `
+                    <div style="padding: 15px; min-width: 250px; font-family: 'Segoe UI', sans-serif;">
+                        <h3 style="margin: 0 0 10px 0; color: #2c5364;">${area.name}</h3>
+                        <div style="background: ${color}; color: white; padding: 8px 12px; border-radius: 20px; margin-bottom: 15px; font-weight: bold; text-align: center;">
                             ${area.risk_level} Risk (${(area.risk_score * 100).toFixed(1)}%)
                         </div>
-                        <p style="margin: 5px 0;"><strong>Elevation:</strong> ${area.elevation}m</p>
-                        <p style="margin: 5px 0;"><strong>Population:</strong> ${area.population.toLocaleString()}</p>
-                        <p style="margin: 5px 0;"><strong>Drainage:</strong> ${(area.drainage * 100).toFixed(0)}%</p>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                            <div style="color: #555;">
+                                <strong>Elevation:</strong><br>
+                                <span style="font-size: 18px; color: #2c5364;">${area.elevation}m</span>
+                            </div>
+                            <div style="color: #555;">
+                                <strong>Population:</strong><br>
+                                <span style="font-size: 18px; color: #2c5364;">${area.population.toLocaleString()}</span>
+                            </div>
+                        </div>
+                        
+                        <div style="border-top: 1px solid #eee; padding-top: 10px; color: #666; font-size: 14px;">
+                            <div><strong>Drainage Quality:</strong> ${(area.drainage_quality * 100).toFixed(0)}%</div>
+                            <div><strong>River Distance:</strong> ${area.river_distance}km</div>
+                        </div>
                     </div>
-                `);
+                `;
                 
+                marker.bindPopup(popupContent);
                 markers.push(marker);
             });
             
-          
+            // Add hospital markers
             data.hospitals.forEach(hospital => {
                 const icon = L.divIcon({
-                    html: '🏥',
-                    iconSize: [30, 30]
+                    html: '<div style="color: #4cc9f0; font-size: 28px; text-shadow: 0 0 5px white;">🏥</div>',
+                    iconSize: [35, 35],
+                    className: 'hospital-marker'
                 });
                 
                 const marker = L.marker(hospital.location, { icon }).addTo(map);
-                marker.bindPopup(`<b>${hospital.name}</b><br>${hospital.beds} beds`);
+                
+                const popupContent = `
+                    <div style="padding: 15px; min-width: 220px;">
+                        <h3 style="margin: 0 0 10px 0; color: #4cc9f0;">${hospital.name}</h3>
+                        <div style="color: #555;">
+                            <div><strong>Total Beds:</strong> ${hospital.beds}</div>
+                            <div><strong>Emergency Capacity:</strong> ${hospital.emergency_capacity}</div>
+                            <div style="margin-top: 10px; padding: 8px; background: #f0f8ff; border-radius: 5px; font-size: 14px;">
+                                <i class="fas fa-phone" style="color: #4cc9f0;"></i> Emergency services available
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent);
                 markers.push(marker);
             });
             
-           
-            updateStats(data.areas);
-            
-            
-            document.getElementById('update-time').textContent = 
-                new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            console.log(`✅ Map rendered with ${data.areas.length} areas and ${data.hospitals.length} hospitals`);
         }
         
-        function updateStats(areas) {
-            const high = areas.filter(a => a.risk_level === 'High').length;
-            const medium = areas.filter(a => a.risk_level === 'Medium').length;
-            const low = areas.filter(a => a.risk_level === 'Low').length;
+        function updateStatistics(data) {
+            const stats = data.statistics;
             
-            document.getElementById('high-count').textContent = high;
-            document.getElementById('medium-count').textContent = medium;
-            document.getElementById('low-count').textContent = low;
-            document.getElementById('total-count').textContent = areas.length;
+            document.getElementById('high-count').textContent = stats.high_risk;
+            document.getElementById('medium-count').textContent = stats.medium_risk;
+            document.getElementById('low-count').textContent = stats.low_risk;
+            document.getElementById('total-count').textContent = stats.total_areas;
+            
+            // Update risk percentages
+            const total = stats.total_areas;
+            if (total > 0) {
+                const highPercent = ((stats.high_risk / total) * 100).toFixed(1);
+                const mediumPercent = ((stats.medium_risk / total) * 100).toFixed(1);
+                const lowPercent = ((stats.low_risk / total) * 100).toFixed(1);
+                
+                console.log(`📊 Risk Distribution: High ${highPercent}%, Medium ${mediumPercent}%, Low ${lowPercent}%`);
+            }
         }
     </script>
 </body>
